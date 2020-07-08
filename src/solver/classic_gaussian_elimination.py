@@ -1,9 +1,13 @@
 import numpy as np
 
+from solver.solver import Solver
 
-class ClassicGaussianElimination:
-    @staticmethod
-    def solve(A, b):
+
+class ClassicGaussianElimination(Solver):
+    def __init__(self):
+        pass
+
+    def solve(self, A, b):
         """
         Solve linear equation system A * x = b
         :param A: Matrix A as numpy array

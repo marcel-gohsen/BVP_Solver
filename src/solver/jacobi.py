@@ -1,9 +1,14 @@
 import numpy as np
 
+from solver.solver import Solver
 
-class Jacobi:
-    @staticmethod
-    def solve(A, b, norm_ord=np.inf, epsilon=10 ** -3):
+
+class Jacobi(Solver):
+    def __init__(self, norm_ord=np.inf, epsilon=10**-3):
+        self.norm_ord = norm_ord
+        self.epsilon = epsilon
+
+    def solve(self, A, b):
         A = A.astype(float)
         b = b.astype(float)
 
@@ -27,16 +32,15 @@ class Jacobi:
 
             c[i] = b[i] / coeff_ij
 
-        if np.linalg.norm(B, norm_ord) >= 1:
-            print("Convergence condition is not satisfied!")
-            return None
+        if np.linalg.norm(B, self.norm_ord) >= 1:
+            return "Convergence condition is not satisfied!"
 
         solution = np.random.rand(rows)
         error = np.inf
 
-        while error > epsilon:
+        while error > self.epsilon:
             next_solution = B.dot(solution) + c
-            error = np.linalg.norm(next_solution - solution, norm_ord)
+            error = np.linalg.norm(next_solution - solution, self.norm_ord)
 
             solution = next_solution
 

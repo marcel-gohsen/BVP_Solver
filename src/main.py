@@ -4,6 +4,8 @@ import numpy as np
 import sympy
 
 from solver.classic_gaussian_elimination import ClassicGaussianElimination
+from solver.gaussian_elimination_pivot_selection import GaussianEliminationPivotSelection
+from solver.jacobi import Jacobi
 
 
 def introduce_discretisation(linear_system, N, boundaries):
@@ -42,25 +44,43 @@ def construct_matrix(linear_system):
 
 
 def main():
+    x, y, y_diff_1, y_diff_2 = sympy.symbols("x y y' y''")
+    y_back, y_forward, h = sympy.symbols("y_{i-1} y_{i+1} h")
+
+    orig_diff_eq = sympy.Eq(3 * sympy.sin(x), y_diff_2 + y)
+
+    print("BOUNDARY VALUE PROBLEM SOLVER")
+    print("-----------------------------")
+
+    print("Solve: ")
+    sympy.pprint(orig_diff_eq)
+
+    boundary_cond_1 = sympy.Eq(y_diff_1 + y, 0)
+    boundary_cond_2 = sympy.Eq(y_diff_1 + y, 0)
+
+    print("\nFor x = 0: ", end="")
+    sympy.pprint(boundary_cond_1)
+    print("For x = pi/2: ", end="")
+    sympy.pprint(boundary_cond_2)
+
+    print("-----------------------------")
+
     n = 10
     boundary_low = 0
     boundary_high = math.pi / 2
 
-    x, y, y_diff_2 = sympy.symbols("x y_{i} y''")
-
     # Define finite difference operators
-    y_back, y_forward, h = sympy.symbols("y_{i-1} y_{i+1} h")
     second_order_approx = (y_back - 2 * y + y_forward) / (h ** 2)
 
     forward_first_order_approx = (y_forward - y) / h
     backward_first_order_approx = (y - y_back) / h
 
-    diff_expr = y_diff_2 + y
+    diff_expr = orig_diff_eq.rhs
     diff_expr = diff_expr.subs(y_diff_2, second_order_approx)
     diff_expr = sympy.simplify(diff_expr)
     diff_expr = sympy.collect(diff_expr, y)
 
-    diff_eq = sympy.Eq(3 * sympy.sin(x), diff_expr)
+    diff_eq = sympy.Eq(orig_diff_eq.lhs, diff_expr)
     diff_eq = sympy.Eq(diff_eq.lhs * h ** 2, diff_eq.rhs * h ** 2)
 
     linear_system = []
@@ -89,39 +109,51 @@ def main():
         [(y, sympy.Symbol("y_{" + str(n) + "}")), (y_back, sympy.Symbol("y_{" + str(n - 1) + "}"))]))
     linear_system.append(boundary_eq_high)
 
+    print("Introduce discretization for n = " + str(n))
     linear_system, points = introduce_discretisation(linear_system, n, (boundary_low, boundary_high))
+
+    print("Construct linear equation system")
     b, A = construct_matrix(linear_system)
+    print(A)
+    print(b)
 
-    y_gauss = ClassicGaussianElimination.solve(A, b)
+    solvers = [ClassicGaussianElimination(), GaussianEliminationPivotSelection(), Jacobi()]
+    results = []
 
-    x = sympy.Symbol("x")
-    actual_function = (3 / 8) * (((math.pi + 2) * sympy.cos(x)) - ((math.pi - 2) * sympy.sin(x))) - (
-                (3 / 2) * x * sympy.cos(x))
+    function = (3 / 8) * (((math.pi + 2) * sympy.cos(x)) - ((math.pi - 2) * sympy.sin(x))) - (
+            (3 / 2) * x * sympy.cos(x))
+    exact_solution = [function.subs(x, points[i]) for i in range(len(points))]
 
-    mean_squared_error = 0
+    print("\nExact solution")
+    print("Solution: (" + ",".join([str(round(x, 4)) for x in exact_solution]) + ")")
 
-    for i in range(len(points)):
-        mean_squared_error += (actual_function.subs(x, points[i]) - y_gauss[i]) ** 2
+    for solver in solvers:
+        y_approx = solver.solve(A, b)
 
-    mean_squared_error /= len(points)
+        if isinstance(y_approx, str):
+            print("\n" + solver.__class__.__name__ + ": " + y_approx)
+            continue
 
-    print(mean_squared_error)
+        mean_abs_error = 0
+        mean_squared_error = 0
 
-    # A = np.array([[6.25, -1, 0.5],
-    #               [-1, 5, 2.12],
-    #               [0.5, 2.12, 3.6]])
-    #
-    # b = np.array([7.5, -8.68, -0.24])
-    #
-    # x = ClassicGaussianElimination.solve(A, b)
-    #
-    # print("GAUSSIAN ELIMINATION: ")
-    # print("x = " + str(x) + "\n")
-    #
-    # x = Jacobi.solve(A, b, epsilon=10 ** -3)
-    #
-    # print("JACOBI METHOD: ")
-    # print("x = " + str(x) + "\n")
+        for i in range(len(points)):
+            mean_squared_error += (exact_solution[i] - y_approx[i]) ** 2
+            mean_abs_error += abs(exact_solution[i] - y_approx[i])
+
+        mean_squared_error /= len(points)
+        mean_abs_error /= len(points)
+
+        results.append({"name": solver.__class__.__name__,
+                        "solution": y_approx,
+                        "mse": mean_squared_error,
+                        "mae": mean_abs_error})
+
+    for result in results:
+        print("\n" + result["name"] + "\n"
+              "Solution: (" + ",".join([str(round(x, 4)) for x in result["solution"]]) + ")\n"
+              "Mean abs. error: " + str(round(result["mae"], 4)) + "\n"
+              "Mean square error: " + str(round(result["mse"], 4)))
 
 
 if __name__ == '__main__':
