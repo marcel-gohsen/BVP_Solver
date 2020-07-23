@@ -6,6 +6,7 @@ import sympy
 from solver.classic_gaussian_elimination import ClassicGaussianElimination
 from solver.gaussian_elimination_pivot_selection import GaussianEliminationPivotSelection
 from solver.jacobi import Jacobi
+from solver.sor import SOR
 
 
 def introduce_discretisation(linear_system, N, boundaries):
@@ -65,7 +66,7 @@ def main():
 
     print("-----------------------------")
 
-    n = 10
+    n = 100
     boundary_low = 0
     boundary_high = math.pi / 2
 
@@ -117,7 +118,7 @@ def main():
     print(A)
     print(b)
 
-    solvers = [ClassicGaussianElimination(), GaussianEliminationPivotSelection(), Jacobi()]
+    solvers = [ClassicGaussianElimination(), GaussianEliminationPivotSelection(), Jacobi(), SOR()]
     results = []
 
     function = (3 / 8) * (((math.pi + 2) * sympy.cos(x)) - ((math.pi - 2) * sympy.sin(x))) - (
@@ -151,9 +152,27 @@ def main():
 
     for result in results:
         print("\n" + result["name"] + "\n"
-              "Solution: (" + ",".join([str(round(x, 4)) for x in result["solution"]]) + ")\n"
-              "Mean abs. error: " + str(round(result["mae"], 4)) + "\n"
-              "Mean square error: " + str(round(result["mse"], 4)))
+                                      "Solution: (" + ",".join([str(round(x, 4)) for x in result["solution"]]) + ")\n"
+                                                                                                                 "Mean abs. error: " + str(
+            round(result["mae"], 4)) + "\n"
+                                       "Mean square error: " + str(round(result["mse"], 4)))
+
+    plot = sympy.plotting.plot(function,
+                               xlim=(0, math.pi / 2),
+                               ylim=(-5, 5),
+                               label="Exact", legend=True,
+                               line_color="k",
+                               show=False)
+
+    colors = ["r", "g", "b", "y"]
+
+    for ind, result in enumerate(results):
+        data = [(points[i], result["solution"][i]) for i in range(len(points))]
+
+        func = sympy.polys.polyfuncs.interpolate(data, x)
+        plot.append(sympy.plotting.plot(func, label=result["name"],
+                                        line_color=colors[ind], show=False)[0])
+    plot.show()
 
 
 if __name__ == '__main__':
