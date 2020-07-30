@@ -45,6 +45,10 @@ def construct_matrix(linear_system):
 
 
 def main():
+    n = 10
+    boundary_low = 0
+    boundary_high = math.pi / 2
+
     x, y, y_diff_1, y_diff_2 = sympy.symbols("x y y' y''")
     y_back, y_forward, h = sympy.symbols("y_{i-1} y_{i+1} h")
 
@@ -66,10 +70,6 @@ def main():
 
     print("-----------------------------")
 
-    n = 100
-    boundary_low = 0
-    boundary_high = math.pi / 2
-
     # Define finite difference operators
     second_order_approx = (y_back - 2 * y + y_forward) / (h ** 2)
 
@@ -84,6 +84,7 @@ def main():
     diff_eq = sympy.Eq(orig_diff_eq.lhs, diff_expr)
     diff_eq = sympy.Eq(diff_eq.lhs * h ** 2, diff_eq.rhs * h ** 2)
 
+    # Construct linear equation system
     linear_system = []
 
     for i in range(2, n):
@@ -92,6 +93,7 @@ def main():
 
         linear_system.append(diff_eq.subs([(y_back, y_back_indexed), (y_forward, y_forward_indexed), (y, y_indexed)]))
 
+    # Include boundary conditions
     y_diff_1 = sympy.symbols("y'_{i}")
     boundary_expr = y + y_diff_1
     boundary_expr_low = boundary_expr.subs(y_diff_1, forward_first_order_approx)
@@ -128,6 +130,7 @@ def main():
     print("\nExact solution")
     print("Solution: (" + ",".join([str(round(x, 4)) for x in exact_solution]) + ")")
 
+    # Evaluate solvers
     for solver in solvers:
         y_approx = solver.solve(A, b)
 
@@ -157,9 +160,10 @@ def main():
             round(result["mae"], 4)) + "\n"
                                        "Mean square error: " + str(round(result["mse"], 4)))
 
+    # Plot interpolation of solutions
     plot = sympy.plotting.plot(function,
-                               xlim=(0, math.pi / 2),
-                               ylim=(-5, 5),
+                               xlim=(boundary_low, boundary_high),
+                               ylim=(-3, 3),
                                label="Exact", legend=True,
                                line_color="k",
                                show=False)
