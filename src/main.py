@@ -1,3 +1,4 @@
+import argparse
 import math
 
 import numpy as np
@@ -44,8 +45,7 @@ def construct_matrix(linear_system):
     return b, A
 
 
-def main():
-    n = 10
+def main(n, interpolation):
     boundary_low = 0
     boundary_high = math.pi / 2
 
@@ -182,9 +182,12 @@ def main():
     colors = ["r", "g", "b", "y"]
 
     for ind, result in enumerate(results):
-        # data = [(points[i], result["solution"][i]) for i in range(len(points))]
+        if interpolation == "poly":
+            data = [(points[i], result["solution"][i]) for i in range(len(points))]
+            func = sympy.interpolate(data, x)
+        elif interpolation == "spline":
+            func = sympy.interpolating_spline(1, x, points, result["solution"])
 
-        func = sympy.interpolating_spline(1, x, points, result["solution"])
         plot.append(sympy.plotting.plot(func, label=result["name"],
                                         line_color=colors[ind], show=False)[0])
 
@@ -193,4 +196,10 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", type=int, default=10, dest="n", help="Number of steps for discretization")
+    parser.add_argument("-i", type=str, default="spline", dest="interpolation", choices=["spline", "poly"],
+                        help="Interpolation method")
+
+    data = parser.parse_args()
+    main(data.n, data.interpolation)
