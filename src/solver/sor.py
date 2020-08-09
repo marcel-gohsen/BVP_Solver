@@ -4,7 +4,7 @@ from solver.solver import Solver
 
 
 class SOR(Solver):
-    def __init__(self, epsilon=10 ** -3, w=1.11):
+    def __init__(self, epsilon=10 ** -3, w=1.4):
         self.epsilon = epsilon
         self.w = w
 
@@ -14,7 +14,8 @@ class SOR(Solver):
 
         rows = A.shape[0]
         columns = A.shape[1]
-        solution = np.random.rand(rows)
+        # solution = np.array([0.7] * rows, dtype=np.float)
+        solution = np.random.random(rows)
         last_error = np.linalg.norm(np.matmul(A, solution) - b)
 
         while True:

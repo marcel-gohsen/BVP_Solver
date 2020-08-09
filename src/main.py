@@ -107,7 +107,6 @@ def main():
     boundary_expr_high = boundary_expr.subs(y_diff_1, backward_first_order_approx)
     boundary_expr_high = sympy.simplify(boundary_expr_high)
     boundary_expr_high = sympy.collect(boundary_expr_high, y)
-
     boundary_eq_high = sympy.Eq(0 * h, (boundary_expr_high * h).subs(
         [(y, sympy.Symbol("y_{" + str(n) + "}")), (y_back, sympy.Symbol("y_{" + str(n - 1) + "}"))]))
     linear_system.append(boundary_eq_high)
@@ -125,40 +124,52 @@ def main():
 
     function = (3 / 8) * (((math.pi + 2) * sympy.cos(x)) - ((math.pi - 2) * sympy.sin(x))) - (
             (3 / 2) * x * sympy.cos(x))
-    exact_solution = [function.subs(x, points[i]) for i in range(len(points))]
+    exact_solution = np.array([function.subs(x, points[i]) for i in range(len(points))], dtype=np.float)
 
     print("\nExact solution")
     print("Solution: (" + ",".join([str(round(x, 4)) for x in exact_solution]) + ")")
 
     # Evaluate solvers
     for solver in solvers:
-        y_approx = solver.solve(A, b)
+        if isinstance(solver, SOR):
+            min_error = math.inf
+            min_error_approx = None
 
-        if isinstance(y_approx, str):
-            print("\n" + solver.__class__.__name__ + ": " + y_approx)
-            continue
+            for i in range(10):
+                y_approx = solver.solve(A, b)
 
-        mean_abs_error = 0
-        mean_squared_error = 0
+                diff = exact_solution - y_approx
+                abs_error = np.linalg.norm(diff)
 
-        for i in range(len(points)):
-            mean_squared_error += (exact_solution[i] - y_approx[i]) ** 2
-            mean_abs_error += abs(exact_solution[i] - y_approx[i])
+                if abs_error < min_error:
+                    min_error = abs_error
+                    min_error_approx = y_approx
 
-        mean_squared_error /= len(points)
-        mean_abs_error /= len(points)
+            abs_error = min_error
+            y_approx = min_error_approx
+        else:
+            y_approx = solver.solve(A, b)
+
+            if isinstance(y_approx, str):
+                print("\n" + solver.__class__.__name__ + ": " + y_approx)
+                continue
+
+            diff = exact_solution - y_approx
+            abs_error = np.linalg.norm(diff)
+
+        relative_error = abs_error / np.linalg.norm(exact_solution)
 
         results.append({"name": solver.__class__.__name__,
                         "solution": y_approx,
-                        "mse": mean_squared_error,
-                        "mae": mean_abs_error})
+                        "abs": abs_error,
+                        "rel": relative_error})
 
     for result in results:
         print("\n" + result["name"] + "\n"
                                       "Solution: (" + ",".join([str(round(x, 4)) for x in result["solution"]]) + ")\n"
-                                                                                                                 "Mean abs. error: " + str(
-            round(result["mae"], 4)) + "\n"
-                                       "Mean square error: " + str(round(result["mse"], 4)))
+                                                                                                                 "Abs. error: " + str(
+            round(result["abs"], 4)) + "\n"
+                                       "Rel. error: " + str(round(result["rel"], 4)))
 
     # Plot interpolation of solutions
     plot = sympy.plotting.plot(function,
@@ -171,11 +182,13 @@ def main():
     colors = ["r", "g", "b", "y"]
 
     for ind, result in enumerate(results):
-        data = [(points[i], result["solution"][i]) for i in range(len(points))]
+        # data = [(points[i], result["solution"][i]) for i in range(len(points))]
 
-        func = sympy.polys.polyfuncs.interpolate(data, x)
+        func = sympy.interpolating_spline(1, x, points, result["solution"])
         plot.append(sympy.plotting.plot(func, label=result["name"],
                                         line_color=colors[ind], show=False)[0])
+
+    plot.save("doc/evaluation.png")
     plot.show()
 
 
